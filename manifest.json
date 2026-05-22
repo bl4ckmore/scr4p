@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "MyHome Listing Copier",
+  "version": "0.1.0",
+  "description": "Copy an existing myhome.ge listing and auto-fill the new-listing form. Review and publish manually.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://www.myhome.ge/*",
+    "https://myhome.ge/*",
+    "https://statements.myhome.ge/*",
+    "https://*.tnet.ge/*",
+    "https://static.my.ge/*",
+    "https://*.my.ge/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.myhome.ge/pr/*",
+        "https://myhome.ge/pr/*"
+      ],
+      "js": [
+        "src/source_listing.js"
+      ],
+      "css": [
+        "src/ui.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://statements.myhome.ge/*"
+      ],
+      "js": [
+        "src/create_form.js"
+      ],
+      "css": [
+        "src/ui.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://statements.myhome.ge/*/choose-statement-website*"
+      ],
+      "css": [],
+      "js": [
+        "src/choose_site.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "MyHome Listing Copier"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

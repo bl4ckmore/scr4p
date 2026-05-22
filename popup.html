@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { width: 280px; margin: 0; font-family: -apple-system, system-ui, sans-serif; color: #2b2f33; }
+    .head { background: #26B571; color: #fff; padding: 14px 16px; font-weight: 700; font-size: 15px; }
+    .body { padding: 14px 16px; font-size: 13px; line-height: 1.55; }
+    .status { background: #f4f6f5; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+    ol { margin: 0; padding-left: 18px; }
+    li { margin-bottom: 6px; }
+    .clear { width: 100%; margin-top: 12px; padding: 9px; border: 1px solid #e6e8eb;
+             background: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; color: #d23; }
+  </style>
+</head>
+<body>
+  <div class="head">MyHome Listing Copier</div>
+  <div class="body">
+    <div class="status" id="status">…</div>
+    <ol>
+      <li>გახსენი myhome.ge განცხადება → „კოპირება“.</li>
+      <li>გახსენი ახალი განცხადების ფორმა → „ფორმის შევსება“.</li>
+      <li>გადაამოწმე და გამოაქვეყნე ხელით.</li>
+    </ol>
+    <button class="clear" id="clear">დაკოპირებულის გასუფთავება</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
