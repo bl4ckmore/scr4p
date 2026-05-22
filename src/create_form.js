@@ -31,6 +31,31 @@
     return new Promise(function(r) { setTimeout(r, ms); });
   }
 
+  // Map section names to h2 heading text on the page
+  var SECTION_HEADINGS = {
+    'ქონების სტატუსი': 'უძრავი ქონების ტიპი',
+    'მდებარეობა':      'მდებარეობა',
+    'ფასი':            'შესაძლებელია გაცვლა',
+    'მახასიათებლები':  'ფართი',
+    'checkboxes':      'ქონების მახასიათებლები',
+    'აღწერა':          'ფოტოგალერეა'
+  };
+
+  function scrollToSection(sectionName) {
+    var heading = SECTION_HEADINGS[sectionName] || sectionName;
+    var els = Array.from(document.querySelectorAll('h2, h3'));
+    for (var i = 0; i < els.length; i++) {
+      var t = (els[i].innerText || '').trim();
+      // Use includes() for partial match to handle asterisks/spaces
+      if (t === heading || t.includes(heading.replace(' *','')) ) {
+        var y = els[i].getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+        return;
+      }
+    }
+    console.log('[copier] scroll: heading not found:', heading);
+  }
+
   function clickLabelInSection(text, sectionHint) {
     var labels = document.querySelectorAll('label');
     for (var i = 0; i < labels.length; i++) {
@@ -70,6 +95,8 @@
         var t = (items[i].innerText || '').trim();
         if (t === sectionName || t.includes(sectionName)) {
           items[i].click();
+          // Scroll the clicked nav item into view so user sees which section is active
+          items[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
           setTimeout(resolve, 200);
           return;
         }
@@ -254,27 +281,52 @@
   }
 
   // Currency toggle: aria-checked=false=GEL, true=USD
-  // currency_id: 1=GEL, 2=USD, 3=EUR
+  // currency_id: 1=GEL, 2=USD
   function setCurrency(currencyId) {
-    var toggle = null;
-    // Find toggle nearest to price input
-    var priceEl = document.getElementById('total_price');
-    if (priceEl) {
-      var node = priceEl.parentElement;
-      for (var k = 0; k < 8; k++) {
-        if (!node) break;
-        var t = node.querySelector('[role=switch]');
-        if (t) { toggle = t; break; }
-        node = node.parentElement;
+    if (!currencyId) return false;
+    var wantUSD = (currencyId === 2);
+
+    // Find currency by looking for the $ text label near price fields
+    // The toggle area contains both a GEL icon button and a "$" text
+    var allEls = Array.from(document.querySelectorAll('button, div, span'));
+    for (var i = 0; i < allEls.length; i++) {
+      var el = allEls[i];
+      if (!el.offsetParent) continue;
+      var t = (el.innerText || '').trim();
+      // Find the "$" label element near the price section
+      if (t === '$' && el.children.length === 0) {
+        // This is the USD label — its sibling or parent is the toggle
+        var toggle = el.closest('[role=switch]') ||
+                     (el.parentElement && el.parentElement.querySelector('[role=switch]')) ||
+                     el.parentElement;
+        var isGEL = true; // assume GEL by default (form default)
+        var sw = document.querySelector('[role=switch]');
+        if (sw) isGEL = sw.getAttribute('aria-checked') !== 'true';
+        console.log('[copier] currency: isGEL=' + isGEL + ' wantUSD=' + wantUSD);
+        if (wantUSD && isGEL) {
+          // Click the $ element to switch to USD
+          el.click();
+          if (el.parentElement) el.parentElement.click();
+          console.log('[copier] currency: clicked $ to switch to USD');
+          return true;
+        } else if (!wantUSD && !isGEL) {
+          // Click GEL icon to switch back
+          var gelBtn = document.querySelector('[role=switch]');
+          if (gelBtn) gelBtn.click();
+          return true;
+        }
+        return true; // already correct
       }
     }
-    if (!toggle) toggle = document.querySelector('[role=switch]');
-    if (!toggle) return false;
-    var currentIsUSD = toggle.getAttribute('aria-checked') === 'true';
-    var wantUSD = (currencyId === 2);
-    console.log('[copier] currency: currentIsUSD=' + currentIsUSD + ' wantUSD=' + wantUSD);
-    if (currentIsUSD !== wantUSD) toggle.click();
-    return true;
+    // Last resort: just click the role=switch toggle
+    var sw2 = document.querySelector('[role=switch]');
+    if (sw2) {
+      var isUSD2 = sw2.getAttribute('aria-checked') === 'true';
+      console.log('[copier] currency fallback: isUSD=' + isUSD2 + ' wantUSD=' + wantUSD);
+      if (isUSD2 !== wantUSD) sw2.click();
+      return true;
+    }
+    return false;
   }
 
   // Project type: luk-flex luk-justify-start div containing "აირჩიეთ პროექტის ტიპი"
@@ -405,7 +457,7 @@
     if (!fileInput) return "ფოტო input ვერ მოიძებნა.";
 
     // Wait for pre-fetched files (they started loading at the beginning)
-    statusEl.textContent = "ფოტოები სრულდება...";
+    if (statusEl) statusEl.textContent = "5/5: ფოტოები ჩაისმება..."; setProgress(90);
     var results = await prefetchedFilesPromise;
     var files = results.filter(Boolean);
 
@@ -423,6 +475,7 @@
   var STATUS_TYPES      = { 1:'ძველი აშენებული', 2:'ახალი აშენებული', 3:'მშენებარე' };
   var CONDITION_TYPES   = { 1:'ახალი გარემონტებული', 2:'ძველი გარემონტებული', 3:'სარემონტო', 4:'სარემონტო', 5:'თეთრი კარკასი', 6:'შავი კარკასი', 7:'მწვანე კარკასი', 8:'თეთრი პლიუსი' };
   var BEDROOM_TYPES     = { 1:'1', 2:'2', 3:'3+', 4:'საერთო' };
+  var BATHROOM_TYPES    = { 1:'1', 2:'2', 3:'3+', 4:'საერთო' };
   var PARKING_TYPES     = { 1:'ავტოფარეხი', 2:'პარკინგის ადგილი', 3:'პარკინგის გარეშე', 4:'ეზოს პარკინგი', 5:'მიწისქვეშა პარკინგი', 6:'ფასიანი ავტოსადგომი' };
   var HEATING_TYPES     = { 1:'ცენტრალური გათბობა', 2:'გაზის გამათბობელი', 3:'დენის გამათბობელი', 5:'ცენტრალური+იატაკის გათბობა', 6:'გათბობის გარეშე', 7:'ინდივიდუალური', 8:'იატაკის გათბობა' };
   var HOT_WATER_TYPES   = { 1:'გაზის გამაცხელებელი', 2:'ავზი', 3:'დენის გამაცხელებელი', 4:'მზის გამათბობელი', 5:'ცხელი წყლის გარეშე', 6:'ცენტრალური ცხელი წყალი', 7:'ბუნებრივი ცხელი წყალი', 8:'ინდივიდუალური' };
@@ -439,14 +492,22 @@
     truck_elevator:'სატვირთო ლიფტი', bar:'ბარი', gym:'სპორტ დარბაზი',
     grill:'მაყალი/გრილი', jacuzzi:'ჯაკუზი', "coded-door":'კარი კოდით',
     guard:'დაცვა', alarm:'სიგნალიზაცია', ventilation:'ვინტილაცია',
-    concierge:'კონსიერჟი', barrier:'შლაგბაუმი', fire_system:'სახანძრო სისტემა',
+    concierge:'კონსიერჟი',
+    // Both key variants for შლაგბაუმი
+    barrier:'შლაგბაუმი', schlagbaum:'შლაგბაუმი',
+    fire_system:'სახანძრო სისტემა',
     swimming_pool:'ღია აუზი', indoor_pool:'დახურული აუზი', sauna:'საუნა',
     investment:'საინვესტიციო',
+    // Additional keys found in real listings
+    airbnb:'Airbnb/Booking ექაუნთი',
+    ssmp:'სსმპ',
+    reception:'მისაღები',
+    storage:'სათავსო',
   };
 
   function setProgress(pct) {
-    var bar = document.getElementById('mh-copier-progress-bar');
-    var wrap = document.getElementById('mh-copier-progress');
+    var bar = document.getElementById('mh-copier-modal-bar');
+    var wrap = document.getElementById('mh-copier-modal-progress');
     if (wrap) wrap.style.display = 'block';
     if (bar) bar.style.width = pct + '%';
   }
@@ -493,7 +554,7 @@
     }
 
     // === SECTION 1: ქონების სტატუსი ===
-    statusEl.textContent = "1/5: ქონების ტიპი..."; setProgress(10);
+    statusEl.textContent = "1/5: ქონების ტიპი..."; setProgress(10); scrollToSection('ქონების სტატუსი'); await wait(300); 
     await goToSection('ქონების სტატუსი');
     await wait(200);
 
@@ -514,25 +575,78 @@
     await wait(150);
 
     // === SECTION 2: მდებარეობა ===
-    statusEl.textContent = "2/5: მდებარეობა..."; setProgress(25);
+    statusEl.textContent = "2/5: მდებარეობა..."; setProgress(25); scrollToSection('მდებარეობა'); await wait(300); 
     await fillLocation(listing, filled, skipped);
 
     // === SECTION 3: ფასი ===
-    statusEl.textContent = "3/5: ფასი..."; setProgress(45);
+    statusEl.textContent = "3/5: ფასი..."; setProgress(45); scrollToSection('ფასი'); await wait(300); 
     await goToSection('ფასი');
     await wait(200);
 
-    if (listing.currency_id) { setCurrency(listing.currency_id); await wait(150); filled.push('currency'); }
+    // Wait for price section to fully render before touching currency toggle
+    await wait(300);
+    if (listing.currency_id) {
+      var currOk = setCurrency(listing.currency_id);
+      await wait(200);
+      // Retry once in case toggle wasn't ready
+      if (!currOk) { setCurrency(listing.currency_id); await wait(200); }
+      filled.push('currency');
+    }
     fill("total_price", "total_price", listing.total_price);
 
     // === SECTION 4: მახასიათებლები ===
-    statusEl.textContent = "4/5: მახასიათებლები..."; setProgress(60);
+    statusEl.textContent = "4/5: მახასიათებლები..."; setProgress(60); scrollToSection('მახასიათებლები'); await wait(300); 
     await goToSection('მახასიათებლები');
     await wait(200);
 
     fill("area",         ":r15:", listing.area);
     fill("floor",        ":r1g:", listing.floor);
     fill("total_floors", ":r1h:", listing.total_floors);
+
+    // Helper: find input by nearby label text
+    function byNearLabel(labelText) {
+      var inputs = document.querySelectorAll('input[type=text]');
+      for (var ni = 0; ni < inputs.length; ni++) {
+        var node = inputs[ni].parentElement;
+        for (var nj = 0; nj < 6; nj++) {
+          if (!node) break;
+          if ((node.textContent||'').includes(labelText)) return inputs[ni];
+          node = node.parentElement;
+        }
+      }
+      return null;
+    }
+    console.log("[copier] balcony data:", listing.balconies, listing.balcony_area, "ssmp:", listing.for_special_people);
+    // Log all section 4 input IDs
+    console.log("[copier] s4 inputs:", Array.from(document.querySelectorAll('input[type=text]')).map(function(e){ return e.id; }));
+    // Balcony count (:r1m:) and area (:r1n:) — confirmed IDs from DOM inspection
+    if (listing.balconies) {
+      var balEl = document.getElementById(':r1m:') || byNearLabel('აივნის რაოდენობა');
+      if (balEl) { setVal(balEl, listing.balconies); filled.push('balcony_count'); }
+      else skipped.push('balcony_count');
+    }
+    if (listing.balcony_area) {
+      // balcony area is the input next to balcony count - try :r1n: or nearby
+      var balAreaEl = document.getElementById(':r1n:');
+      if (!balAreaEl) {
+        // find the input inside the "აივანი" section
+        var inputs4all = Array.from(document.querySelectorAll('input[type=text]'));
+        for (var bi2 = 0; bi2 < inputs4all.length; bi2++) {
+          var pid2 = inputs4all[bi2].id;
+          if (pid2 === ':r1n:' || pid2 === ':r1o:' || pid2 === ':r1p:') {
+            balAreaEl = inputs4all[bi2]; break;
+          }
+        }
+      }
+      if (balAreaEl) { setVal(balAreaEl, listing.balcony_area); filled.push('balcony_area'); }
+      else skipped.push('balcony_area');
+    }
+
+    // Ceiling height
+    if (listing.height && listing.height > 0) {
+      var heightEl = document.getElementById(':r1u:');
+      if (heightEl) { setVal(heightEl, listing.height); filled.push('height'); }
+    }
 
     // Rooms (scoped to ოთახები section)
     if (listing.room_type_id) {
@@ -550,9 +664,48 @@
       roomOk ? filled.push('rooms:' + roomText) : skipped.push('rooms:' + roomText);
     }
 
-    // Bedrooms
+    // Bedrooms: container text starts with "საძინებელი"
     var bedLabel = BEDROOM_TYPES[listing.bedroom_type_id];
-    if (bedLabel) (await clickLabelWithRetry(bedLabel, 400, 'სველი წერტილი')) ? filled.push('bedrooms') : skipped.push('bedrooms:' + bedLabel);
+    if (bedLabel) {
+      var bedOk = false;
+      var allLabels = document.querySelectorAll('label');
+      for (var li2 = 0; li2 < allLabels.length; li2++) {
+        if ((allLabels[li2].innerText||'').trim() !== bedLabel) continue;
+        var node2 = allLabels[li2].parentElement;
+        for (var lj2 = 0; lj2 < 8; lj2++) {
+          if (!node2) break;
+          var nt2 = (node2.textContent||'').trim();
+          if (nt2.startsWith('საძინებელი')) { allLabels[li2].click(); bedOk = true; break; }
+          node2 = node2.parentElement;
+        }
+        if (bedOk) break;
+      }
+      bedOk ? filled.push('bedrooms') : skipped.push('bedrooms:' + bedLabel);
+    }
+
+    // Bathrooms: container text is "123+საერთო" (no heading text)
+    // Find labels 1/2/3+/საერთო that are NOT in rooms section and NOT in bedrooms section
+    var bathLabel = BATHROOM_TYPES[listing.bathroom_type_id];
+    if (bathLabel) {
+      var bathOk = false;
+      var allLabels3 = document.querySelectorAll('label');
+      for (var li3 = 0; li3 < allLabels3.length; li3++) {
+        if ((allLabels3[li3].innerText||'').trim() !== bathLabel) continue;
+        var node3 = allLabels3[li3].parentElement;
+        for (var lj3 = 0; lj3 < 8; lj3++) {
+          if (!node3) break;
+          var nt3 = (node3.textContent||'').trim();
+          // Bathroom section: contains only 1,2,3+,საერთო — no room numbers above 4
+          if (!nt3.includes('10+') && !nt3.includes('საძინებელი') &&
+              (nt3.includes('3+') || nt3.includes('საერთო'))) {
+            allLabels3[li3].click(); bathOk = true; break;
+          }
+          node3 = node3.parentElement;
+        }
+        if (bathOk) break;
+      }
+      bathOk ? filled.push('bathrooms') : skipped.push('bathrooms:' + bathLabel);
+    }
 
     // Parking, heating, hot water
     var parkLabel = PARKING_TYPES[listing.parking_type_id];
@@ -573,16 +726,24 @@
 
     var cbFilled = 0, cbSkipped = 0;
     var params = listing.parameters || [];
+    var unmappedKeys = [];
     for (var i = 0; i < params.length; i++) {
       var lbl = PARAM_LABELS[params[i].key];
-      if (!lbl) { cbSkipped++; continue; }
+      if (!lbl) { cbSkipped++; unmappedKeys.push(params[i].key); continue; }
       var cb = checkboxByLabel(lbl);
       if (cb) { if (!cb.checked) cb.click(); cbFilled++; }
-      else cbSkipped++;
+      else { cbSkipped++; unmappedKeys.push(params[i].key + '(cb not found)'); }
+    }
+    if (unmappedKeys.length) console.log('[copier] unmapped param keys:', unmappedKeys);
+
+    // სსმპ badge
+    if (listing.for_special_people) {
+      var ssmpCb = checkboxByLabel('სსმპ');
+      if (ssmpCb && !ssmpCb.checked) { ssmpCb.click(); filled.push('ssmp'); }
     }
 
     // === SECTION 5: აღწერა / ფოტოები ===
-    statusEl.textContent = "5/5: აღწერა და ფოტოები..."; setProgress(80);
+    statusEl.textContent = "5/5: აღწერა და ფოტოები..."; setProgress(80); scrollToSection('აღწერა'); await wait(300); 
     await goToSection('აღწერა');
     await wait(200);
 
@@ -601,35 +762,34 @@
       "<b>გადაამოწმე ფორმა და გამოაქვეყნე ხელით.</b>";
 
     setProgress(100);
+    setTimeout(function() {
+      var ov = document.getElementById('mh-copier-overlay');
+      if (ov) ov.style.opacity = '0';
+      setTimeout(function() { if (ov) ov.style.display = 'none'; }, 500);
+    }, 1500);
     console.log("[copier] fill report", { filled: filled, skipped: skipped, cbFilled: cbFilled });
   }
 
   function injectPanel() {
-    if (document.getElementById("mh-copier-panel")) return;
+    if (document.getElementById("mh-copier-overlay")) return;
     var panel = document.createElement("div");
-    panel.id = "mh-copier-panel";
-    panel.className = "mh-copier-panel";
+    panel.id = "mh-copier-overlay";
     panel.innerHTML =
-      '<div class="mh-copier-panel-head">' +
-        '<span class="mh-copier-dot"></span>' +
-        '<span>განცხადების კოპირება</span>' +
-        '<button class="mh-copier-x">x</button>' +
-      '</div>' +
-      '<div class="mh-copier-body">' +
-        '<div class="mh-copier-meta" id="mh-copier-meta">იტვირთება...</div>' +
-        '<div class="mh-copier-progress" id="mh-copier-progress" style="display:none">' +
-          '<div class="mh-copier-progress-bar" id="mh-copier-progress-bar"></div>' +
+      '<div id="mh-copier-modal">' +
+        '<div id="mh-copier-modal-icon">⚡</div>' +
+        '<div id="mh-copier-modal-title">განცხადება ივსება</div>' +
+        '<div id="mh-copier-modal-meta">იტვირთება...</div>' +
+        '<div id="mh-copier-modal-progress">' +
+          '<div id="mh-copier-modal-bar"></div>' +
         '</div>' +
-        '<button class="mh-copier-primary" id="mh-copier-fill" disabled>ფორმის შევსება</button>' +
-        '<div class="mh-copier-status" id="mh-copier-status"></div>' +
-        '<div class="mh-copier-note">ექსტენშენი არ აქვეყნებს - შენ ამოწმებ და თავად აქვეყნებ.</div>' +
+        '<div id="mh-copier-modal-status">ფორმა იტვირთება...</div>' +
+        '<button id="mh-copier-fill" style="display:none">ხელახლა</button>' +
       '</div>';
     document.body.appendChild(panel);
-    panel.querySelector(".mh-copier-x").addEventListener("click", function() { panel.remove(); });
 
-    var meta     = panel.querySelector("#mh-copier-meta");
-    var fillBtn  = panel.querySelector("#mh-copier-fill");
-    var statusEl = panel.querySelector("#mh-copier-status");
+    var meta     = document.getElementById("mh-copier-modal-meta");
+    var fillBtn  = document.getElementById("mh-copier-fill");
+    var statusEl = document.getElementById("mh-copier-modal-status");
 
     chrome.runtime.sendMessage({ type: "GET_LISTING" }, function(res) {
       if (res && res.ok && res.listing) {
@@ -637,12 +797,18 @@
         meta.innerHTML =
           "<b>" + (l.title || "უსათაურო").slice(0, 42) + "</b><br>" +
           "ID " + l.source_id + " / " + (l.area || "?") + " m2 / " + (l.images || []).length + " ფოტო";
-        fillBtn.disabled = false;
         fillBtn.addEventListener("click", function() {
           fillBtn.disabled = true;
           statusEl.textContent = "შევსება...";
           doAutofill(l, statusEl).finally(function() { fillBtn.disabled = false; });
         });
+
+        // Auto-fill on page load
+        fillBtn.disabled = true;
+        statusEl.textContent = "ფორმა იტვირთება...";
+        setTimeout(function() {
+          doAutofill(l, statusEl).finally(function() { fillBtn.disabled = false; });
+        }, 1500);
 
         var debugBtn = panel.querySelector("#mh-copier-debug");
         debugBtn.disabled = false;

@@ -1,37 +1,76 @@
 /* ui.css — injected UI, kept on-brand with myhome.ge (#26B571) and unobtrusive */
 
-.mh-copier-panel {
+/* Create form modal overlay */
+#mh-copier-overlay {
   position: fixed;
+  top: 20px;
   right: 20px;
-  bottom: 20px;
-  z-index: 2147483000;
-  width: 300px;
+  z-index: 2147483647;
+  transition: opacity 0.5s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  pointer-events: none;
+}
+#mh-copier-modal {
   background: #fff;
-  border: 1px solid #e6e8eb;
-  border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0,0,0,.18);
-  font-family: inherit;
+  border-radius: 16px;
+  padding: 20px 24px;
+  width: 280px;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  pointer-events: all;
+  border: 1px solid #e5e7eb;
+}
+#mh-copier-modal-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+#mh-copier-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 6px;
+}
+#mh-copier-modal-meta {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+#mh-copier-modal-progress {
+  width: 100%;
+  height: 6px;
+  background: #e8f7f1;
+  border-radius: 3px;
   overflow: hidden;
+  margin-bottom: 14px;
 }
-.mh-copier-panel-head {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 14px;
-  background: #26B571; color: #fff; font-weight: 700; font-size: 14px;
+#mh-copier-modal-bar {
+  height: 100%;
+  background: #26B571;
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.5s ease;
 }
-.mh-copier-panel-head .mh-copier-x {
-  margin-left: auto; background: transparent; border: none; color: #fff;
-  font-size: 20px; line-height: 1; cursor: pointer; opacity: .85;
+#mh-copier-modal-status {
+  font-size: 13px;
+  color: #6b7280;
+  min-height: 20px;
 }
-.mh-copier-panel-head .mh-copier-x:hover { opacity: 1; }
-.mh-copier-body { padding: 14px; }
-.mh-copier-meta { font-size: 13px; color: #2b2f33; line-height: 1.5; margin-bottom: 12px; }
-.mh-copier-primary {
-  width: 100%; padding: 11px; border: none; border-radius: 10px;
-  background: #26B571; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer;
+#mh-copier-fill {
+  margin-top: 16px;
+  padding: 10px 24px;
+  background: #26B571;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.mh-copier-primary:disabled { background: #b9d8c8; cursor: not-allowed; }
-.mh-copier-status { margin-top: 10px; font-size: 12.5px; color: #2b2f33; line-height: 1.5; }
-.mh-copier-note { margin-top: 10px; font-size: 11.5px; color: #7a8189; line-height: 1.45; }
+
+/* Keep old classes for compatibility */
+.mh-copier-panel { display: none; }
+.mh-copier-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 
 /* Source listing panel */

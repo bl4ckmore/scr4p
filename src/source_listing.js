@@ -41,6 +41,10 @@
       parking_type_id: st.parking_type_id,
       daily_rent_type_id: st.daily_rent_type_id,
       area: st.area, floor: st.floor, total_floors: st.total_floors,
+      balconies: st.balconies, balcony_area: st.balcony_area,
+      height: st.height,
+      living_room_type: st.living_room_type, living_room_area: st.living_room_area,
+      for_special_people: st.for_special_people,
       total_price: st.total_price, price: st.price,
       currency_id: st.currency_id, price_type_id: st.price_type_id,
       address: st.address, lat: st.lat, lng: st.lng,
@@ -67,35 +71,31 @@
     // Inline styles so no CSS dependency issues
     panel.style.cssText = [
       'position:fixed',
-      'bottom:20px',
-      'right:20px',
+      'bottom:24px',
+      'right:24px',
       'z-index:2147483647',
       'background:#fff',
       'border:1px solid #e5e7eb',
-      'border-radius:10px',
-      'padding:12px 14px',
-      'width:240px',
-      'box-shadow:0 4px 20px rgba(0,0,0,0.12)',
+      'border-radius:12px',
+      'padding:14px 16px',
+      'width:260px',
+      'box-shadow:0 8px 30px rgba(0,0,0,0.15)',
       'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
     ].join(';');
 
-    // Try to insert into sidebar (flex-col gap-4 with >2 children)
+    // Try desktop sticky sidebar first: DIV.sticky.hidden.col-span-3.lg:block
     let inserted = false;
-    const sidebars = Array.from(document.querySelectorAll('div')).filter(e =>
-      e.className.includes('flex-col') && e.className.includes('gap-4') &&
-      e.offsetParent !== null && e.children.length > 2
+    const stickySidebar = Array.from(document.querySelectorAll('div')).find(e =>
+      e.className.includes('sticky') && e.className.includes('lg:block') &&
+      e.className.includes('col-span-3')
     );
-    if (sidebars.length > 0) {
-      // Remove fixed positioning and insert inline
-      panel.style.cssText = [
-        'background:#fff',
-        'border:1px solid #e8e8e8',
-        'border-radius:12px',
-        'padding:16px',
-        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        'box-shadow:0 1px 4px rgba(0,0,0,0.06)'
-      ].join(';');
-      sidebars[0].appendChild(panel);
+    if (stickySidebar) {
+      panel.style.position = 'static';
+      panel.style.width = 'auto';
+      panel.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
+      // Insert after first child (price card)
+      const refChild = stickySidebar.children[1] || null;
+      stickySidebar.insertBefore(panel, refChild);
       inserted = true;
     }
     if (!inserted) document.body.appendChild(panel);
