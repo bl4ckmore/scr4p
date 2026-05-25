@@ -422,12 +422,39 @@
   }
 
   function checkboxByLabel(labelText) {
-    var boxes = document.querySelectorAll("input[type=checkbox]");
+    // Strategy 1: find a <label> whose trimmed innerText exactly matches,
+    // then return the checkbox it controls (via htmlFor or closest input sibling).
+    var labels = document.querySelectorAll('label');
+    for (var i = 0; i < labels.length; i++) {
+      if ((labels[i].innerText || '').trim() !== labelText) continue;
+      // label[for=id]
+      if (labels[i].htmlFor) {
+        var linked = document.getElementById(labels[i].htmlFor);
+        if (linked && linked.type === 'checkbox') return linked;
+      }
+      // checkbox inside the label
+      var inner = labels[i].querySelector('input[type=checkbox]');
+      if (inner) return inner;
+      // checkbox as immediate sibling
+      var sib = labels[i].previousElementSibling || labels[i].nextElementSibling;
+      if (sib && sib.type === 'checkbox') return sib;
+      // checkbox in parent
+      var parent = labels[i].parentElement;
+      if (parent) {
+        var inParent = parent.querySelector('input[type=checkbox]');
+        if (inParent) return inParent;
+      }
+    }
+    // Strategy 2: find checkbox whose nearest ancestor with non-empty trimmed
+    // textContent has that text as its FULL content (not just includes).
+    // Limits walk to 4 levels to avoid false positives.
+    var boxes = document.querySelectorAll('input[type=checkbox]');
     for (var i = 0; i < boxes.length; i++) {
       var node = boxes[i].parentElement;
-      for (var j = 0; j < 7; j++) {
+      for (var j = 0; j < 4; j++) {
         if (!node) break;
-        if ((node.textContent || "").includes(labelText)) return boxes[i];
+        var t = (node.innerText || '').trim();
+        if (t === labelText) return boxes[i];
         node = node.parentElement;
       }
     }
@@ -503,6 +530,14 @@
     ssmp:'სსმპ',
     reception:'მისაღები',
     storage:'სათავსო',
+    // Alternate spellings / extra keys
+    natural_gas:'ბუნებრივი აირი',
+    cable_tv:'ტელევიზია',
+    lift:'ლიფტი',
+    air_conditioner:'კონდინციონერი',
+    dryer:'საშრობი მანქანა',
+    microwave:'მიკროტალღური ღუმელი',
+    wardrobe:'კარადა',
   };
 
   function setProgress(pct) {
@@ -720,9 +755,19 @@
 
     await wait(300);
 
-    // Expand "ყველა პარამეტრი" then tick checkboxes
+    // Expand "ყველა პარამეტრი" then wait until checkboxes are actually in the DOM
     expandAllParams();
-    await wait(700);
+    // Poll until checkboxes appear (up to 2s), then extra settle time for React
+    await new Promise(function(resolve) {
+      var attempts = 0;
+      function poll() {
+        var cbs = document.querySelectorAll('input[type=checkbox]');
+        if (cbs.length > 3 || attempts >= 13) { setTimeout(resolve, 300); return; }
+        attempts++;
+        setTimeout(poll, 150);
+      }
+      poll();
+    });
 
     var cbFilled = 0, cbSkipped = 0;
     var params = listing.parameters || [];
@@ -731,8 +776,13 @@
       var lbl = PARAM_LABELS[params[i].key];
       if (!lbl) { cbSkipped++; unmappedKeys.push(params[i].key); continue; }
       var cb = checkboxByLabel(lbl);
-      if (cb) { if (!cb.checked) cb.click(); cbFilled++; }
-      else { cbSkipped++; unmappedKeys.push(params[i].key + '(cb not found)'); }
+       if (cb) {
+        if (!cb.checked) { cb.click(); await wait(80); }
+        cbFilled++;
+      } else {
+        cbSkipped++;
+        unmappedKeys.push(params[i].key + '(cb not found)');
+      }
     }
     if (unmappedKeys.length) console.log('[copier] unmapped param keys:', unmappedKeys);
 
